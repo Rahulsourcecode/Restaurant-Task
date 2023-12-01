@@ -1,7 +1,9 @@
-import { Box, Button, Divider, Grid, List, ListItem, Modal, TextField, Typography } from "@mui/material"
+import { Box, Button, Divider, Grid, List, ListItem, Modal, TextField, Typography } from "@mui/material";
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import { useEffect, useState } from "react";
 import { addHotel, deleteHotel, updateHotel } from "../../utils/api";
 
@@ -16,55 +18,83 @@ const style = {
     p: 4,
 };
 
+const validationSchema = Yup.object({
+    name: Yup.string().required('Name is required'),
+    contact: Yup.number().required('Contact number is required').positive('Contact number must be positive'),
+    address: Yup.string().required('Address is required'),
+});
 
 const ListRestaurants = ({ onItemClick, data, onChangeitems }) => {
     const [open, setOpen] = useState(false);
-    const [editOption, setEditOption] = useState(false)
-    const [id, SetID] = useState(null)
+    const [editOption, setEditOption] = useState(false);
+    const [id, SetID] = useState(null);
     const inital = {
         name: "",
         contact: "",
         address: "",
-    }
+    };
+
+    const formik = useFormik({
+        initialValues: {
+            name: '',
+            contact: '',
+            address: '',
+        },
+        validationSchema: validationSchema,
+        onSubmit: (values) => {
+            if (editOption) {
+                HandleEditSubmit();
+            } else {
+                HandelSubmit();
+            }
+        },
+    });
+
     const handleOpen = () => {
         setOpen(true);
         setEditOption(false);
+        formik.resetForm();
+
     };
+
     function handleClose() {
-        setOpen(false)
-        setEditOption(false)
-        setHotelData(inital)
+        setOpen(false);
+        setEditOption(false);
+        setHotelData(inital);
     }
+
     const [hotelData, setHotelData] = useState({
         name: "",
         contact: "",
         address: "",
-    })
+    });
 
     function HandleChange(e) {
-        setHotelData({ ...hotelData, [e.target.name]: e.target.value })
+        setHotelData({ ...hotelData, [e.target.name]: e.target.value });
+        formik.handleChange(e);
     }
+
     function HandelSubmit() {
-        onChangeitems(false)
+        onChangeitems(false);
         addHotel(hotelData)
-            .then((data) => {
-                console.log(data)
-                setHotelData(inital)
-                onChangeitems((prev) => !prev)
-                handleClose()
+            .then(() => {
+                setHotelData(inital);
+                onChangeitems((prev) => !prev);
+                handleClose();
             })
-            .catch((err) => console.log(err))
+            .catch((err) => console.log(err));
     }
+
     function HandleDelete(id) {
-        const status = confirm("Are you shure??")
+        const status = window.confirm("Are you sure?");
         if (status) {
             deleteHotel(id)
                 .then(() => {
-                    onChangeitems((prev) => !prev)
-
-                })
+                    onChangeitems((prev) => !prev);
+                });
         }
     }
+
     function HandleEdit(id) {
         const selectedHotel = data.find((val) => val.id === id);
         setHotelData({
@@ -74,25 +104,23 @@ const ListRestaurants = ({ onItemClick, data, onChangeitems }) => {
         });
         setEditOption(true);
         setOpen(true);
-        SetID(id)
+        SetID(id);
     }
 
     function HandleEditSubmit() {
-        
         const values = {
             id: id,
-            data: hotelData
-        }
+            data: hotelData,
+        };
         updateHotel(values)
-            .then((data) => {
-                console.log(data)
-                setHotelData(inital)
-                onChangeitems((prev) => !prev)
-                setOpen(false)
+            .then(() => {
+                setHotelData(inital);
+                onChangeitems((prev) => !prev);
+                setOpen(false);
             })
             .catch((err) => {
-                console.log(err)
-            })
+                console.log(err);
+            });
     }
 
     return (
@@ -128,15 +156,16 @@ const ListRestaurants = ({ onItemClick, data, onChangeitems }) => {
                                 backgroundColor: '#555',
                             },
                         }}>
-                            {data.map((val) => <><ListItem button key={val.id} sx={{ display: 'flex', justifyContent: 'space-between' }} onClick={() => onItemClick(val)}>
-                                <Box>
-                                    <Typography>{val.name}</Typography>
-                                </Box>
-                                <Box>
-                                    <Button onClick={() => HandleEdit(val.id)}><EditIcon /></Button>
-                                    <Button onClick={() => HandleDelete(val.id)}><DeleteIcon sx={{ color: 'red' }} /></Button>
-                                </Box>
-                            </ListItem>
+                            {data.map((val) => <>
+                                <ListItem button key={val.id} sx={{ display: 'flex', justifyContent: 'space-between' }} onClick={() => onItemClick(val)}>
+                                    <Box>
+                                        <Typography>{val.name}</Typography>
+                                    </Box>
+                                    <Box>
+                                        <Button onClick={() => HandleEdit(val.id)}><EditIcon /></Button>
+                                        <Button onClick={() => HandleDelete(val.id)}><DeleteIcon sx={{ color: 'red' }} /></Button>
+                                    </Box>
+                                </ListItem>
                                 <Divider />
                             </>
                             )}
@@ -155,52 +184,66 @@ const ListRestaurants = ({ onItemClick, data, onChangeitems }) => {
                     <Typography sx={{ mb: 5 }} id="modal-modal-title" variant="h6" component="h2">
                         Add A Restaurent
                     </Typography>
-                    <Grid container >
-                        <Grid item xs={12}>
-                            <label>Enter A Name</label>
+                    <form onSubmit={formik.handleSubmit}>
+                        <Grid container>
+                            <Grid item xs={12}>
+                                <label>Enter A Name</label>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    value={formik.values.name || hotelData.name}
+                                    onChange={HandleChange}
+                                    onBlur={formik.handleBlur}
+                                    name="name"
+                                    fullWidth
+                                    type="text"
+                                />
+                                <Typography color="error">{formik.touched.name && formik.errors.name}</Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <label>Enter Number</label>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    value={formik.values.contact || hotelData.contact}
+                                    onChange={HandleChange}
+                                    onBlur={formik.handleBlur}
+                                    name="contact"
+                                    fullWidth
+                                    type="number"
+                                />
+                                <Typography color="error">{formik.touched.contact && formik.errors.contact}</Typography>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <label>Enter Address</label>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    value={formik.values.address || hotelData.address}
+                                    onChange={HandleChange}
+                                    onBlur={formik.handleBlur}
+                                    name="address"
+                                    multiline
+                                    fullWidth
+                                    type="text"
+                                    rows={4}
+                                />
+                                <Typography color="error">{formik.touched.address && formik.errors.address}</Typography>
+                            </Grid>
+                            <Grid mt={5} item xs={12} display={'flex'} justifyContent={'space-between'}>
+                                <Button variant="contained" onClick={handleClose}>
+                                    Close
+                                </Button>
+                                <Button variant="contained" type="submit">
+                                    {editOption ? 'Update' : 'Add'}
+                                </Button>
+                            </Grid>
                         </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                value={hotelData.name}
-                                onChange={HandleChange}
-                                name="name"
-                                fullWidth type="text" />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <label>Enter Number</label>
-                        </Grid>
-                        <Grid item xs={12}>
-
-                            <TextField
-                                value={hotelData.contact}
-                                onChange={HandleChange}
-                                name="contact"
-                                fullWidth type="number" />
-
-                        </Grid>
-                        <Grid item xs={12}>
-                            <label>Enter Address</label>
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                value={hotelData.address}
-                                onChange={HandleChange}
-                                name="address"
-                                multiline fullWidth type="text" rows={4} />
-                        </Grid>
-                        <Grid mt={5} item xs={12} display={'flex'} justifyContent={'space-between'}>
-                            <Button variant="contained">
-                                close
-                            </Button>
-                            <Button variant="contained" onClick={editOption ? HandleEditSubmit : HandelSubmit}>
-                                Add
-                            </Button>
-                        </Grid>
-                    </Grid>
+                    </form>
                 </Box>
             </Modal>
         </>
+    );
+};
 
-    )
-}
-export default ListRestaurants
+export default ListRestaurants;
